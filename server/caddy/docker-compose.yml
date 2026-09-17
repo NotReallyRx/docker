@@ -1,0 +1,18 @@
+services:
+  caddy:
+    image: caddy:${CADDY_VERSION}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - "${CONF_PATH}/conf:/etc/caddy"
+      - "${CONF_PATH}/certs:/certs"
+      - "${CONF_PATH}/site:/srv"
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

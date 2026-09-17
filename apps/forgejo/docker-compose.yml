@@ -1,0 +1,47 @@
+networks:
+  forgejo:
+    external: false
+
+services:
+  server:
+    image: codeberg.org/forgejo/forgejo:${FORGEJO_VERSION:-14}
+    container_name: forgejo
+    environment:
+      - USER_UID=${FORGEJO_UID}
+      - USER_GID=${FORGEJO_GID}
+      - FORGEJO__database__DB_TYPE=mysql
+      - FORGEJO__database__HOST=db:3306
+      - FORGEJO__database__NAME=${MYSQL_DATABASE}
+      - FORGEJO__database__USER=${MYSQL_USER}
+      - FORGEJO__database__PASSWD=${MYSQL_PASSWORD}
+      - FORGEJO__server__SSH_PORT=${SSH_PORT}
+      - FORGEJO__server__SSH_DOMAIN=${SSH_DOMAIN}
+    restart: always
+    networks:
+      - forgejo
+    volumes:
+      - "${CONFIG_ROOT}/forgejo:/data"
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "${WEB_PORT}:3000"
+      - "${SSH_PORT}:22"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:${MYSQL_VERSION:-8}
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    networks:
+      - forgejo
+    volumes:
+      - "${CONFIG_ROOT}/mysql:/var/lib/mysql"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5

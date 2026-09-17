@@ -1,0 +1,12 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+      - ICON_BLACKLIST_REGEX=^$
+    volumes:
+      - ${VW_ROOT}:/data
+    ports:
+      - "${VW_PORT}:80"

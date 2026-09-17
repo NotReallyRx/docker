@@ -1,0 +1,173 @@
+---
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
+
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+    environment:
+      - VPN_SERVICE_PROVIDER=airvpn
+      - VPN_TYPE=wireguard
+
+      # From AirVPN config generator
+      - WIREGUARD_PRIVATE_KEY=${AIRVPN_PRIVATE_KEY}
+      - WIREGUARD_PRESHARED_KEY=${AIRVPN_PRESHARED_KEY}
+      - WIREGUARD_ADDRESSES=${AIRVPN_ADDRESS}
+
+      # Optional server selection
+      - SERVER_COUNTRIES=${VPN_SERVER_COUNTRIES:-Netherlands}
+
+      # AirVPN forwarded port(s)
+      - FIREWALL_VPN_INPUT_PORTS=${QBIT_PORT:-6902}
+
+      # Local LAN access to services
+      # Note: GLUETUN_EXTRA_PORT (8789 in the original file) didn't map to any
+      # service here — check what it was for before removing it.
+      - FIREWALL_INPUT_PORTS=${SONARR_PORT:-8989},${PROWLARR_PORT:-9696},${RADARR_PORT:-7878},${QBIT_PORT:-6902},${QBIT_WEBUI_PORT:-8080},${FLARESOLVERR_PORT:-8191}
+
+    ports:
+      - "${QBIT_WEBUI_PORT:-8080}:8080"
+      - "${QBIT_PORT:-6902}:6902"
+      - "${QBIT_PORT:-6902}:6902/udp"
+      - "${SONARR_PORT:-8989}:8989"
+      - "${RADARR_PORT:-7878}:7878"
+      - "${PROWLARR_PORT:-9696}:9696"
+      - "${FLARESOLVERR_PORT:-8191}:8191"
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    network_mode: "service:gluetun"
+    restart: unless-stopped
+    environment:
+      - PUID=${SONARR_PUID:-13001}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/sonarr:/config"
+      - "${DATA_ROOT}:/data"
+      - "${HDD1_ROOT}:/hdd1"
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${RADARR_PUID:-13002}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/radarr:/config"
+      - "${DATA_ROOT}:/data"
+      - "${HDD1_ROOT}:/hdd1"
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    environment:
+      - PUID=${JELLYSEERR_PUID:-13012}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/jellyseerr:/app/config"
+    ports:
+      - "${JELLYSEERR_PORT:-5055}:5055"
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${PROWLARR_PUID:-13006}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/prowlarr:/config"
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=${TZ}
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    environment:
+      - PUID=${JELLYFIN_PUID:-1000}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/jellyfin:/config"
+      - "${DATA_ROOT}/media:/data"
+      - "${HDD1_ROOT}:/hdd1"
+    ports:
+      - "${JELLYFIN_PORT:-8096}:8096"
+      - "${JELLYFIN_DISCOVERY_PORT:-7359}:7359/udp"
+      - "${JELLYFIN_DISCOVERY_PORT:-7359}:7359"
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    environment:
+      - PUID=${QBIT_PUID:-13007}
+      - PGID=${PGID:-13000}
+      - UMASK=${UMASK:-002}
+      - TZ=${TZ}
+      - WEBUI_PORT=${QBIT_WEBUI_PORT:-8080}
+    volumes:
+      - "${CONFIG_ROOT}/qbittorrent:/config"
+      - "${DATA_ROOT}:/data"
+      - "${HDD1_ROOT}:/hdd1"
+
+
+  wizarr:
+    container_name: wizarr
+    image: ghcr.io/wizarrrr/wizarr
+    restart: unless-stopped
+    ports:
+      - "${WIZARR_PORT:-5690}:5690"
+    volumes:
+      - "${CONFIG_ROOT}/wizarr:/data"
+    environment:
+      - PUID=${WIZARR_PUID:-1000}
+      - PGID=${WIZARR_PGID:-1000}
+      - DISABLE_BUILTIN_AUTH=${WIZARR_DISABLE_BUILTIN_AUTH:-false}
+      - TZ=${TZ}
+  
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=${BAZARR_PUID:-1000}
+      - PGID=${BAZARR_PGID:-1000}
+      - TZ=${TZ}
+    volumes:
+      - "${CONFIG_ROOT}/bazarr:/config"
+      - "${DATA_ROOT}:/data"
+      - "${HDD1_ROOT}:/hdd1"
+    ports:
+      - "${BAZARR_PORT:-6767}:6767"
+    restart: unless-stopped

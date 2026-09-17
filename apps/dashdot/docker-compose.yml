@@ -1,0 +1,16 @@
+services:
+  dashdot:
+    image: mauricenino/dashdot:latest
+    container_name: dashdot
+    restart: unless-stopped
+
+    privileged: true
+
+    ports:
+      - "${PORT}:3001"
+
+    volumes:
+      - /:/mnt/host:ro
+
+    environment:
+      DASHDOT_STORAGE_WIDGET_ITEMS_PER_PAGE: ${ITEMS_PER_PAGE:-10}
